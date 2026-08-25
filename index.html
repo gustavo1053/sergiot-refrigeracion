@@ -289,28 +289,21 @@
 
   /* ===== Trabajos realizados ===== */
   .trabajos-grid{
-    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+    display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:180px;gap:12px;
   }
-  @media (max-width:900px){ .trabajos-grid{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:900px){ .trabajos-grid{grid-template-columns:repeat(2,1fr);grid-auto-rows:150px;} }
   .trabajo-item{
-    aspect-ratio:1/1;
-    background:var(--panel);
-    border:1px dashed var(--line);
     border-radius:4px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:10px;
-    color:var(--ink-soft);
     overflow:hidden;
     position:relative;
+    background:var(--panel);
   }
+  .trabajo-item:nth-child(3),.trabajo-item:nth-child(6){grid-row:span 2;}
   .trabajo-item img{
-    width:100%;height:100%;object-fit:cover;position:absolute;inset:0;
+    width:100%;height:100%;object-fit:cover;display:block;
+    transition:transform .4s ease;
   }
-  .trabajo-item svg{width:26px;height:26px;stroke:var(--ink-soft);opacity:.5;}
-  .trabajo-item span{
-    font-family:'IBM Plex Mono',monospace;font-size:10.5px;
-    letter-spacing:.05em;text-transform:uppercase;opacity:.6;text-align:center;padding:0 10px;
-  }
+  .trabajo-item:hover img{transform:scale(1.05);}
 
   /* ===== Marcas ===== */
   .marcas{padding:56px 0;}
@@ -536,22 +529,14 @@
       </div>
     </div>
     <div class="trabajos-grid">
-      <div class="trabajo-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-5-4 4-3-3-6 6"/></svg>
-        <span>Foto próximamente</span>
-      </div>
-      <div class="trabajo-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-5-4 4-3-3-6 6"/></svg>
-        <span>Foto próximamente</span>
-      </div>
-      <div class="trabajo-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-5-4 4-3-3-6 6"/></svg>
-        <span>Foto próximamente</span>
-      </div>
-      <div class="trabajo-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 15l-5-5-4 4-3-3-6 6"/></svg>
-        <span>Foto próximamente</span>
-      </div>
+      <div class="trabajo-item"><img src="trabajo-1.webp" alt="Split instalado con vista al balcón" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-2.webp" alt="Unidad exterior BGH instalada" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-6.webp" alt="Instalación en casa moderna" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-3.webp" alt="Instalación en comercio, Believe Barber" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-5.webp" alt="Técnico de Sergio T Refrigeración trabajando" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-7.webp" alt="Técnico instalando unidad exterior" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-4.webp" alt="Unidad Philco instalada en fachada" loading="lazy"></div>
+      <div class="trabajo-item"><img src="trabajo-8.webp" alt="Instalación LG en terraza con herramientas" loading="lazy"></div>
     </div>
   </div>
 </section>
