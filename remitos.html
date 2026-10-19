@@ -40,6 +40,7 @@
   .chk input{width:auto}
   button{font:inherit;font-size:14px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 12px;cursor:pointer}
   button.pri{background:var(--blue-600);border-color:var(--blue-600);color:#fff;font-weight:bold}
+  button.wa{background:#1FA855;border-color:#1FA855;color:#fff;font-weight:bold}
   button.x{padding:6px;color:#a33}
   .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
   .msg{font-size:13px;margin-top:8px;min-height:1em}
@@ -115,7 +116,10 @@
     </div>
 
     <h2>Cliente</h2>
-    <label for="cliente">Señores</label><input id="cliente" autocomplete="off">
+    <div class="g2">
+      <div><label for="cliente">Señores</label><input id="cliente" autocomplete="off"></div>
+      <div><label for="tel">Teléfono (WhatsApp)</label><input id="tel" type="tel" inputmode="tel" placeholder="Ej: 11 2345 6789"></div>
+    </div>
     <div class="g2">
       <div><label for="domicilio">Domicilio</label><input id="domicilio"></div>
       <div><label for="localidad">Localidad</label><input id="localidad" value="CABA"></div>
@@ -151,6 +155,8 @@
 
     <div class="actions">
       <button type="button" class="pri" id="btnGuardar">Guardar e imprimir / PDF</button>
+      <button type="button" class="wa" id="btnWhatsapp">Enviar por WhatsApp</button>
+      <button type="button" id="btnPdf">Descargar PDF</button>
       <button type="button" id="btnNuevo">Nuevo remito</button>
     </div>
     <div class="msg" id="msg"></div>
@@ -213,6 +219,8 @@
   </section>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -234,7 +242,7 @@
   }];
 
   const $ = id => document.getElementById(id);
-  const campos = ['pv','nro','fecha','cliente','domicilio','localidad','cuit','iva','formaPago','importe','tNombre','tDom','tCuit'];
+  const campos = ['pv','nro','fecha','cliente','tel','domicilio','localidad','cuit','iva','formaPago','importe','tNombre','tDom','tCuit'];
 
   function leer(k, def){
     try{ const s = localStorage.getItem(k); return s ? JSON.parse(s) : def; }
@@ -455,6 +463,7 @@
   function nuevo(){
     const pv = $('pv').value || '00003';
     cargadoDesde = null;
+    compartirListo = null;
     cargarForm({pv, nro: proximoNro(pv), fecha: hoy(), localidad:'CABA', iva:'Cons. Final', items:[{cant:'1',desc:''}]});
     $('cliente').focus();
   }
@@ -464,18 +473,21 @@
     setTimeout(() => { window.print(); document.title = 'Remitos | Sergio T Refrigeración'; }, 50);
   }
 
-  $('btnGuardar').onclick = async () => {
+  const botones = ['btnGuardar','btnWhatsapp','btnPdf'];
+  const ocupado = si => botones.forEach(b => $(b).disabled = si);
+
+  // Guarda el remito del formulario (en la nube o, sin conexión, en el equipo). Devuelve el remito o null.
+  async function guardar(){
     const r = leerForm();
-    if(!r.nro || !r.cliente){ aviso('Completá al menos el número y el cliente.', 'warn'); return; }
+    if(!r.nro || !r.cliente){ aviso('Completá al menos el número y el cliente.', 'warn'); return null; }
     r.pv = pad(r.pv,5);
     const id = idDe(r);
     const edicion = cargadoDesde === id;
     if(!edicion && hist.some(h => idDe(h) === id)){
       $('nro').value = proximoNro(r.pv); render();
       aviso(`El Nº ${id} ya está usado. Se cambió al siguiente libre: revisá y volvé a guardar.`, 'warn');
-      return;
+      return null;
     }
-    const btn = $('btnGuardar'); btn.disabled = true;
     try{
       if(!db || !conectado) throw new Error('sin-conexion');
       await subir(r, edicion);
@@ -483,10 +495,9 @@
       aviso(`Remito ${id} guardado en la nube.`, 'ok');
     }catch(e){
       if(e.message === 'ocupado'){
-        btn.disabled = false;
         $('nro').value = proximoNro(r.pv); render();
         aviso(`El Nº ${id} se acaba de usar desde otro equipo. Se cambió al siguiente libre: revisá y volvé a guardar.`, 'warn');
-        return;
+        return null;
       }
       pendientes = pendientes.filter(p => idDe(p) !== id);
       pendientes.push({...limpio(r), edicion});
@@ -496,8 +507,104 @@
       aviso(ok ? `Sin conexión: el remito ${id} quedó guardado en este equipo y se sube solo cuando vuelva internet.`
                : 'No se pudo guardar (sin conexión ni espacio en este equipo). Igual podés imprimir.', 'warn');
     }
-    btn.disabled = false;
-    imprimir(r);
+    return r;
+  }
+
+  $('btnGuardar').onclick = async () => {
+    ocupado(true);
+    const r = await guardar();
+    ocupado(false);
+    if(r) imprimir(r);
+  };
+
+  // ---------- PDF y WhatsApp ----------
+  const nombrePdf = r => `Remito ${idDe(r)} ${r.cliente}`.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,'').trim() + '.pdf';
+
+  async function generarPdf(){
+    if(!window.html2canvas || !window.jspdf) throw new Error('libs');
+    const canvas = await html2canvas($('remito'), {
+      scale: 2, backgroundColor: '#ffffff', windowWidth: 1000, useCORS: true,
+      onclone: doc => {   // en el celular, armar el PDF con el diseño de hoja completa
+        const el = doc.getElementById('remito');
+        el.style.width = '794px'; el.style.maxWidth = 'none'; el.style.boxShadow = 'none';
+      }
+    });
+    const pdf = new window.jspdf.jsPDF({unit:'mm', format:'a4'});
+    const ancho = 190, alto = canvas.height * ancho / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 10, 10, ancho, Math.min(alto, 277));
+    return pdf.output('blob');
+  }
+
+  function bajar(blob, nombre){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  // Número argentino a formato internacional para wa.me (ej: 11 2345 6789 -> 5491123456789)
+  function telWa(t){
+    let d = String(t||'').replace(/\D/g,'');
+    if(!d) return '';
+    if(d.startsWith('00')) d = d.slice(2);
+    if(d.startsWith('54')){ d = d.slice(2); if(d.startsWith('9')) d = d.slice(1); }
+    if(d.startsWith('0')) d = d.slice(1);
+    if(d.length === 12) d = d.replace(/^(11|[2368]\d{1,3})15/, '$1');   // quita el 15 del celular
+    return '549' + d;
+  }
+
+  const textoWa = r => `Hola ${r.cliente}, te enviamos el remito Nº ${idDe(r)} de Sergio T Refrigeración.` +
+    (r.importe ? ` Importe: ${fmtPesos(r.importe)}.` : '') + ' ¡Gracias!';
+
+  let compartirListo = null;   // por si el celular pide tocar de nuevo para compartir
+
+  $('btnPdf').onclick = async () => {
+    ocupado(true);
+    try{
+      const r = await guardar();
+      if(r) bajar(await generarPdf(), nombrePdf(r));
+    }catch(e){
+      console.error(e);
+      aviso('No se pudo generar el PDF. Probá con "Guardar e imprimir" y elegí "Guardar como PDF".', 'warn');
+    }
+    ocupado(false);
+  };
+
+  $('btnWhatsapp').onclick = async () => {
+    if(compartirListo){ const f = compartirListo; compartirListo = null; return f(); }
+    ocupado(true);
+    try{
+      const r = await guardar();
+      if(!r){ ocupado(false); return; }
+      const blob = await generarPdf();
+      const archivo = new File([blob], nombrePdf(r), {type:'application/pdf'});
+      if(navigator.canShare && navigator.canShare({files:[archivo]})){
+        // Celular: menú de compartir con el PDF adjunto; ahí se elige WhatsApp y el contacto
+        const compartir = () => navigator.share({files:[archivo], text: textoWa(r)})
+          .then(() => aviso(`Remito ${idDe(r)} compartido.`, 'ok'))
+          .catch(e => {
+            if(e.name === 'AbortError') return;
+            if(e.name === 'NotAllowedError'){   // armar el PDF tardó y el celular pide otro toque
+              compartirListo = compartir;
+              aviso('El PDF está listo: tocá de nuevo "Enviar por WhatsApp".', 'ok');
+              return;
+            }
+            aviso('No se pudo compartir. Usá "Descargar PDF" y mandalo a mano.', 'warn');
+          });
+        await compartir();
+      }else{
+        // Compu: se descarga el PDF y se abre WhatsApp con el mensaje para adjuntarlo
+        bajar(blob, nombrePdf(r));
+        const tel = telWa(r.tel);
+        window.open(`https://wa.me/${tel}?text=${encodeURIComponent(textoWa(r))}`, '_blank');
+        aviso(`Se descargó el PDF. En WhatsApp adjuntalo con el clip 📎 ${tel ? '' : 'y elegí el contacto '}antes de enviar.`, 'ok');
+      }
+    }catch(e){
+      console.error(e);
+      aviso('No se pudo generar el PDF. Probá con "Guardar e imprimir" y elegí "Guardar como PDF".', 'warn');
+    }
+    ocupado(false);
   };
   $('btnNuevo').onclick = nuevo;
   $('addItem').onclick = () => { agregarItem(); render(); };
@@ -534,7 +641,7 @@
     e.target.value = '';
   };
 
-  document.querySelector('.form').addEventListener('input', render);
+  document.querySelector('.form').addEventListener('input', () => { compartirListo = null; render(); });
   document.querySelector('.form').addEventListener('change', render);
 
   recalcular();
