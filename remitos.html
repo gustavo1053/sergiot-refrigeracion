@@ -92,12 +92,17 @@
     .letra{border-left:1.5px solid #222;border-right:1.5px solid #222;margin:0}
     .der{padding-left:14px}
   }
+  .estado{margin-left:auto;font-size:12px;display:flex;align-items:center;gap:6px;text-align:right}
+  .estado i{width:9px;height:9px;border-radius:50%;background:#AAB6C2;flex:none}
+  .estado.on i{background:#3BC46F} .estado.off i{background:#E8A33B}
+  button:disabled{opacity:.6;cursor:wait}
 </style>
 </head>
 <body>
 <header class="bar">
   <img src="logo.webp" alt="Sergio T Refrigeración">
   <h1>Generador de remitos</h1>
+  <span class="estado" id="estado"><i></i><span id="estadoTxt"></span></span>
 </header>
 
 <div class="wrap">
@@ -150,7 +155,7 @@
     </div>
     <div class="msg" id="msg"></div>
 
-    <h2>Historial (guardado en este dispositivo)</h2>
+    <h2>Historial (compartido)</h2>
     <div class="hist" id="hist"></div>
     <div class="actions">
       <button type="button" id="btnExport">Exportar historial (CSV)</button>
@@ -208,9 +213,15 @@
   </section>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 (function(){
-  const KEY = 'sergiot_remitos_v1';
+  const KEY = 'sergiot_remitos_v1';            // copia local (para ver sin conexión)
+  const KEY_PEND = 'sergiot_remitos_pend_v1';  // guardados sin conexión, falta subirlos
+  const KEY_MIGRADO = 'sergiot_remitos_migrado_v1';
+  const COLECCION = 'remitos';
   const CAI_VENC = '2027-09-02';
   const RANGO_MAX = 50;
   const IVA_OPC = ['Resp. Inscrip.','Exento','Cons. Final','Resp. Monotributo'];
@@ -225,22 +236,131 @@
   const $ = id => document.getElementById(id);
   const campos = ['pv','nro','fecha','cliente','domicilio','localidad','cuit','iva','formaPago','importe','tNombre','tDom','tCuit'];
 
-  function leerHist(){
-    try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : SEMILLA.slice(); }
-    catch(e){ return SEMILLA.slice(); }
+  function leer(k, def){
+    try{ const s = localStorage.getItem(k); return s ? JSON.parse(s) : def; }
+    catch(e){ return def; }
   }
-  function guardarHist(h){
-    try{ localStorage.setItem(KEY, JSON.stringify(h)); return true; }
+  function escribir(k, v){
+    try{ localStorage.setItem(k, JSON.stringify(v)); return true; }
     catch(e){ return false; }
   }
-  let hist = leerHist();
 
   const pad = (n,l) => String(n||'').replace(/\D/g,'').padStart(l,'0');
+  const idDe = r => `${pad(r.pv,5)}-${pad(r.nro,8)}`;
   const fmtFecha = f => { if(!f) return ''; const [y,m,d] = f.split('-'); return `${d}/${m}/${y}`; };
   const fmtPesos = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2});
   const hoy = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+  const limpio = r => { const o = {}; campos.forEach(c => o[c] = r[c] ?? ''); o.nro = +r.nro; o.pv = pad(r.pv,5); o.pagado = !!r.pagado; o.items = r.items || []; return o; };
+
+  // ---------- Estado ----------
+  let nube = leer(KEY, SEMILLA.slice());   // último historial conocido de la nube
+  let pendientes = leer(KEY_PEND, []);     // guardados sin conexión
+  let hist = [];
+  let conectado = false;
+  let cargadoDesde = null;                 // id del remito abierto desde el historial (edición)
+
+  function recalcular(){
+    const m = new Map(nube.map(r => [idDe(r), r]));
+    pendientes.forEach(r => m.set(idDe(r), {...r, pendiente:true}));
+    hist = [...m.values()];
+    renderHist();
+  }
   const proximoNro = pv => hist.filter(r => pad(r.pv,5) === pad(pv,5)).reduce((m,r) => Math.max(m, +r.nro), 0) + 1;
 
+  function estado(txt, clase){
+    $('estado').className = 'estado ' + (clase || '');
+    $('estadoTxt').textContent = txt;
+  }
+
+  // ---------- Firebase (mismo proyecto que el control de stock) ----------
+  let db = null;
+  try{
+    firebase.initializeApp({
+      apiKey: "AIzaSyBk9LPH1__TlZsnjsyMtnn7XA--wNnd_Jg",
+      authDomain: "sergio-t-refrigeracion.firebaseapp.com",
+      projectId: "sergio-t-refrigeracion",
+      storageBucket: "sergio-t-refrigeracion.firebasestorage.app",
+      messagingSenderId: "736946062335",
+      appId: "1:736946062335:web:e3b6d59f226a7e82689dca"
+    });
+    db = firebase.firestore();
+  }catch(e){
+    console.error('Firebase no disponible:', e);
+  }
+
+  const conTiempo = (p, ms) => Promise.race([p, new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+  // Crea el remito en la nube si el número está libre; si ya existe solo lo pisa cuando es una edición.
+  function subir(r, permitirPisar){
+    const ref = db.collection(COLECCION).doc(idDe(r));
+    return conTiempo(db.runTransaction(async t => {
+      const s = await t.get(ref);
+      if(s.exists && !permitirPisar) throw new Error('ocupado');
+      t.set(ref, {...limpio(r), actualizado: firebase.firestore.FieldValue.serverTimestamp()});
+    }), 10000);
+  }
+
+  async function subirPendientes(){
+    for(const r of pendientes.slice()){
+      try{
+        await subir(r, r.edicion);
+        pendientes = pendientes.filter(p => idDe(p) !== idDe(r));
+      }catch(e){
+        if(e.message !== 'ocupado') break;   // sin conexión: se reintenta después
+        aviso(`Atención: el remito ${idDe(r)} guardado sin conexión choca con uno cargado desde otro equipo. Abrilo en el historial y guardalo con otro número.`, 'warn');
+      }
+    }
+    escribir(KEY_PEND, pendientes);
+    recalcular();
+  }
+
+  // Primera vez en este equipo: sube lo que había guardado localmente con la versión anterior.
+  async function migrar(docsNube){
+    if(leer(KEY_MIGRADO, false)) return;
+    const ids = new Set(docsNube.map(idDe));
+    const faltan = nube.filter(r => !ids.has(idDe(r)));
+    for(const r of faltan){ try{ await subir(r, false); }catch(e){} }
+    escribir(KEY_MIGRADO, true);
+  }
+
+  if(db){
+    estado('Conectando…');
+    firebase.auth().signInAnonymously().catch(err => {
+      console.error('Error de autenticación:', err);
+      estado('Sin conexión (se guarda en este equipo)', 'off');
+    });
+    let primera = true;
+    firebase.auth().onAuthStateChanged(user => {
+      if(!user) return;
+      db.collection(COLECCION).onSnapshot({includeMetadataChanges:true}, snap => {
+        const docs = snap.docs.map(d => { const x = d.data(); delete x.actualizado; return x; });
+        conectado = !snap.metadata.fromCache;
+        estado(conectado ? 'En línea · compartido' : 'Sin conexión (se guarda en este equipo)', conectado ? 'on' : 'off');
+        if(primera && conectado){
+          primera = false;
+          migrar(docs).then(subirPendientes);
+        }
+        nube = docs;
+        escribir(KEY, nube);
+        const antes = $('nro').value;
+        recalcular();
+        // si el formulario es un remito nuevo y otro equipo usó ese número, pasar al siguiente
+        if(!cargadoDesde && hist.some(h => idDe(h) === idDe({pv:$('pv').value, nro:antes}))){
+          $('nro').value = proximoNro($('pv').value);
+        }
+        render();
+      }, err => {
+        console.error('Firestore:', err);
+        conectado = false;
+        estado(err.code === 'permission-denied' ? 'Sin permiso en la base (se guarda en este equipo)' : 'Sin conexión (se guarda en este equipo)', 'off');
+      });
+    });
+    window.addEventListener('online', () => { if(pendientes.length) subirPendientes(); });
+  }else{
+    estado('Sin conexión (se guarda en este equipo)', 'off');
+  }
+
+  // ---------- Formulario ----------
   function agregarItem(cant='', desc=''){
     const div = document.createElement('div');
     div.className = 'item';
@@ -301,48 +421,83 @@
     avisos(r);
   }
 
-  function avisos(r, extra){
+  function aviso(txt, clase){
+    $('msg').className = 'msg ' + clase;
+    $('msg').textContent = txt;
+  }
+
+  function avisos(r){
     const m = [];
     if(r.nro > RANGO_MAX) m.push(`El talonario autorizado llega hasta el Nº ${RANGO_MAX}.`);
     if(r.fecha && r.fecha > CAI_VENC) m.push('La fecha es posterior al vencimiento del C.A.I. (02/09/2027).');
-    if(hist.some(h => pad(h.pv,5)===pad(r.pv,5) && +h.nro===+r.nro)) m.push('Este número ya está en el historial: al guardar se reemplaza.');
-    $('msg').className = 'msg ' + (extra ? 'ok' : 'warn');
-    $('msg').textContent = extra || m.join(' ');
+    if(hist.some(h => idDe(h) === idDe(r))){
+      m.push(cargadoDesde === idDe(r) ? 'Estás viendo un remito ya guardado: si lo cambiás y guardás, se reemplaza.' : 'Este número ya está usado: cambialo o tocá "Nuevo remito".');
+    }
+    aviso(m.join(' '), 'warn');
   }
 
   function renderHist(){
     const h = $('hist'); h.innerHTML = '';
     if(!hist.length){ h.innerHTML = '<div><small>Sin remitos guardados.</small></div>'; return; }
-    hist.slice().sort((a,b) => (b.pv+pad(b.nro,8)).localeCompare(a.pv+pad(a.nro,8))).forEach(r => {
+    hist.slice().sort((a,b) => idDe(b).localeCompare(idDe(a))).forEach(r => {
       const d = document.createElement('div');
       const izq = document.createElement('span');
-      izq.innerHTML = `<b>${pad(r.pv,5)}-${pad(r.nro,8)}</b> `;
+      izq.innerHTML = `<b>${idDe(r)}</b> `;
       izq.append(document.createTextNode(r.cliente || '(sin cliente)'));
       const der = document.createElement('small');
-      der.textContent = fmtFecha(r.fecha) + (r.importe ? ' · ' + fmtPesos(r.importe) : '');
+      der.textContent = (r.pendiente ? '⏳ sin subir · ' : '') + fmtFecha(r.fecha) + (r.importe ? ' · ' + fmtPesos(r.importe) : '');
       d.append(izq, der);
-      d.onclick = () => { cargarForm(r); window.scrollTo({top:0,behavior:'smooth'}); };
+      d.onclick = () => { cargadoDesde = idDe(r); cargarForm(r); window.scrollTo({top:0,behavior:'smooth'}); };
       h.appendChild(d);
     });
   }
 
   function nuevo(){
     const pv = $('pv').value || '00003';
+    cargadoDesde = null;
     cargarForm({pv, nro: proximoNro(pv), fecha: hoy(), localidad:'CABA', iva:'Cons. Final', items:[{cant:'1',desc:''}]});
     $('cliente').focus();
   }
 
-  $('btnGuardar').onclick = () => {
-    const r = leerForm();
-    if(!r.nro || !r.cliente){ avisos(r); $('msg').className='msg warn'; $('msg').textContent='Completá al menos el número y el cliente.'; return; }
-    r.pv = pad(r.pv,5);
-    hist = hist.filter(h => !(pad(h.pv,5)===r.pv && +h.nro===+r.nro));
-    hist.push(r);
-    const ok = guardarHist(hist);
-    renderHist();
-    avisos(r, ok ? `Remito ${r.pv}-${pad(r.nro,8)} guardado.` : 'No se pudo guardar en este dispositivo (igual podés imprimir).');
-    document.title = `Remito ${r.pv}-${pad(r.nro,8)} ${r.cliente}`;
+  function imprimir(r){
+    document.title = `Remito ${idDe(r)} ${r.cliente}`;
     setTimeout(() => { window.print(); document.title = 'Remitos | Sergio T Refrigeración'; }, 50);
+  }
+
+  $('btnGuardar').onclick = async () => {
+    const r = leerForm();
+    if(!r.nro || !r.cliente){ aviso('Completá al menos el número y el cliente.', 'warn'); return; }
+    r.pv = pad(r.pv,5);
+    const id = idDe(r);
+    const edicion = cargadoDesde === id;
+    if(!edicion && hist.some(h => idDe(h) === id)){
+      $('nro').value = proximoNro(r.pv); render();
+      aviso(`El Nº ${id} ya está usado. Se cambió al siguiente libre: revisá y volvé a guardar.`, 'warn');
+      return;
+    }
+    const btn = $('btnGuardar'); btn.disabled = true;
+    try{
+      if(!db || !conectado) throw new Error('sin-conexion');
+      await subir(r, edicion);
+      cargadoDesde = id;
+      aviso(`Remito ${id} guardado en la nube.`, 'ok');
+    }catch(e){
+      if(e.message === 'ocupado'){
+        btn.disabled = false;
+        $('nro').value = proximoNro(r.pv); render();
+        aviso(`El Nº ${id} se acaba de usar desde otro equipo. Se cambió al siguiente libre: revisá y volvé a guardar.`, 'warn');
+        return;
+      }
+      pendientes = pendientes.filter(p => idDe(p) !== id);
+      pendientes.push({...limpio(r), edicion});
+      const ok = escribir(KEY_PEND, pendientes);
+      recalcular();
+      cargadoDesde = id;
+      aviso(ok ? `Sin conexión: el remito ${id} quedó guardado en este equipo y se sube solo cuando vuelva internet.`
+               : 'No se pudo guardar (sin conexión ni espacio en este equipo). Igual podés imprimir.', 'warn');
+    }
+    btn.disabled = false;
+    imprimir(r);
   };
   $('btnNuevo').onclick = nuevo;
   $('addItem').onclick = () => { agregarItem(); render(); };
@@ -356,28 +511,33 @@
   $('btnExport').onclick = () => {
     const q = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
     const filas = [['Numero','Fecha','Cliente','Domicilio','Localidad','CUIT','IVA','Detalle','Forma de pago','Importe','Pagado']];
-    hist.forEach(r => filas.push([`${pad(r.pv,5)}-${pad(r.nro,8)}`, fmtFecha(r.fecha), r.cliente, r.domicilio, r.localidad, r.cuit, r.iva,
+    hist.forEach(r => filas.push([idDe(r), fmtFecha(r.fecha), r.cliente, r.domicilio, r.localidad, r.cuit, r.iva,
       (r.items||[]).map(i => (i.cant ? i.cant + ' x ' : '') + i.desc).join(' | '), r.formaPago, r.importe, r.pagado ? 'Sí' : 'No']));
     descargar('remitos.csv', '﻿' + filas.map(f => f.map(q).join(';')).join('\r\n'), 'text/csv');
   };
-  $('btnBackup').onclick = () => descargar(`remitos-backup-${hoy()}.json`, JSON.stringify(hist,null,1), 'application/json');
+  $('btnBackup').onclick = () => descargar(`remitos-backup-${hoy()}.json`, JSON.stringify(hist.map(limpio),null,1), 'application/json');
   $('btnRestore').onclick = () => $('fileRestore').click();
   $('fileRestore').onchange = e => {
     const f = e.target.files[0]; if(!f) return;
     f.text().then(t => {
       const data = JSON.parse(t);
       if(!Array.isArray(data)) throw new Error();
-      hist = data; guardarHist(hist); renderHist(); nuevo();
-      avisos(leerForm(), `Se restauraron ${data.length} remitos.`);
-    }).catch(() => { $('msg').className='msg warn'; $('msg').textContent='El archivo no es una copia válida.'; });
+      // Se agregan los que falten; no se pisan remitos que ya están en el historial
+      const ids = new Set(hist.map(idDe));
+      const nuevos = data.filter(r => r && r.nro && !ids.has(idDe(r))).map(r => ({...limpio(r), edicion:false}));
+      pendientes = pendientes.concat(nuevos);
+      escribir(KEY_PEND, pendientes);
+      recalcular(); nuevo();
+      aviso(`Se agregaron ${nuevos.length} remitos de la copia (${data.length - nuevos.length} ya estaban).`, 'ok');
+      if(conectado) subirPendientes();
+    }).catch(() => aviso('El archivo no es una copia válida.', 'warn'));
     e.target.value = '';
   };
 
   document.querySelector('.form').addEventListener('input', render);
   document.querySelector('.form').addEventListener('change', render);
 
-  guardarHist(hist);
-  renderHist();
+  recalcular();
   nuevo();
 })();
 </script>
