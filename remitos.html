@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Remitos | Sergio T Refrigeración</title>
+<style>
+  :root{
+    --navy-950:#0A1B30;
+    --navy-800:#123258;
+    --blue-600:#1D5FA0;
+    --sky-400:#5BC2E7;
+    --paper:#F3F7FB;
+    --ink:#0F2540;
+    --ink-soft:#54687A;
+    --line:#CBD8E2;
+    --white:#FCFDFE;
+    --ok:#1E7B4A;
+    --warn:#B5651D;
+    --stamp:#1A3FB0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--paper);color:var(--ink)}
+  header.bar{background:var(--navy-950);color:var(--white);padding:12px 16px;display:flex;align-items:center;gap:12px}
+  header.bar img{height:40px}
+  header.bar h1{font-size:18px;margin:0}
+  .wrap{display:grid;grid-template-columns:minmax(320px,430px) 1fr;gap:16px;padding:16px;max-width:1400px;margin:0 auto}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+  .panel{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .panel h2{font-size:14px;margin:14px 0 8px;color:var(--navy-800);text-transform:uppercase;letter-spacing:.05em}
+  .panel h2:first-child{margin-top:0}
+  label{display:block;font-size:12px;color:var(--ink-soft);margin:6px 0 2px}
+  input,select,textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:14px;background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:54px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .item{display:grid;grid-template-columns:62px 1fr 32px;gap:6px;margin-bottom:6px;align-items:start}
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:10px;color:var(--ink)}
+  .chk input{width:auto}
+  button{font:inherit;font-size:14px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 12px;cursor:pointer}
+  button.pri{background:var(--blue-600);border-color:var(--blue-600);color:#fff;font-weight:bold}
+  button.x{padding:6px;color:#a33}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .msg{font-size:13px;margin-top:8px;min-height:1em}
+  .msg.warn{color:var(--warn)} .msg.ok{color:var(--ok)}
+  .hist{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+  .hist div{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+  .hist div:hover{background:var(--paper)}
+  .hist small{color:var(--ink-soft)}
+  .previewbox{overflow:auto}
+
+  /* ===== Remito ===== */
+  .remito{background:#fff;color:#111;width:190mm;max-width:100%;margin:0 auto;padding:6mm;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+  .box{border:1.5px solid #222;border-radius:8px;padding:10px 14px;margin-bottom:6px}
+  .head{display:grid;grid-template-columns:1fr 70px 1.1fr}
+  .emp{text-align:center} .emp img{height:80px} .emp p{margin:3px 0}
+  .letra{text-align:center;border-left:1.5px solid #222;border-right:1.5px solid #222}
+  .letra div{font-size:38px;font-weight:bold;border:2px solid #222;width:44px;margin:0 auto}
+  .letra small{font-size:8px}
+  .der{padding-left:14px} .der h3{margin:0;font-size:26px;display:inline}
+  .nv{font-size:9px;font-weight:bold;float:right;text-align:center;line-height:1.1}
+  .num{font-size:21px;margin:8px 0}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:1px 10px}
+  .row{display:flex;gap:8px;margin:4px 0;flex-wrap:wrap}
+  .row .v{border-bottom:1px dotted #555;flex:1;font-weight:bold;min-width:60px}
+  .iva span{margin-right:10px}
+  .remito table{width:100%;border-collapse:collapse}
+  .remito th{border-bottom:1.5px solid #222;padding:6px;font-size:11px;letter-spacing:2px}
+  .remito td{border-bottom:1px solid #bbb;padding:8px 6px;vertical-align:top;white-space:pre-wrap}
+  .remito td:first-child{width:70px;text-align:center;border-right:1.5px solid #222}
+  .pagado{display:inline-block;border:3px solid var(--stamp);color:var(--stamp);font-weight:bold;font-size:28px;padding:4px 18px;transform:rotate(-12deg);border-radius:6px}
+  .firma{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:34px;text-align:center;font-size:12px}
+  .firma div{border-top:1px dotted #555;padding-top:3px}
+  .pie{font-size:9px;display:flex;justify-content:space-between;gap:10px}
+  .pie .cai{font-size:12px;white-space:nowrap}
+  @media (max-width:600px){
+    .remito{font-size:11px;padding:3mm}
+    .head{grid-template-columns:1fr}
+    .letra{border:none;margin:6px 0}
+    .der{padding-left:0}
+  }
+
+  @page{size:A4;margin:10mm}
+  @media print{
+    body{background:#fff}
+    header.bar,.panel.form,.panel h2.ph{display:none !important}
+    .wrap{display:block;padding:0}
+    .panel{border:none;padding:0;background:#fff}
+    .remito{box-shadow:none;width:auto;padding:0;font-size:13px}
+    .head{grid-template-columns:1fr 70px 1.1fr}
+    .letra{border-left:1.5px solid #222;border-right:1.5px solid #222;margin:0}
+    .der{padding-left:14px}
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <img src="logo.webp" alt="Sergio T Refrigeración">
+  <h1>Generador de remitos</h1>
+</header>
+
+<div class="wrap">
+  <section class="panel form">
+    <h2>Remito</h2>
+    <div class="g3">
+      <div><label for="pv">Punto de venta</label><input id="pv" value="00003" inputmode="numeric"></div>
+      <div><label for="nro">Número</label><input id="nro" type="number" min="1"></div>
+      <div><label for="fecha">Fecha</label><input id="fecha" type="date"></div>
+    </div>
+
+    <h2>Cliente</h2>
+    <label for="cliente">Señores</label><input id="cliente" autocomplete="off">
+    <div class="g2">
+      <div><label for="domicilio">Domicilio</label><input id="domicilio"></div>
+      <div><label for="localidad">Localidad</label><input id="localidad" value="CABA"></div>
+    </div>
+    <div class="g2">
+      <div><label for="cuit">C.U.I.T.</label><input id="cuit" placeholder="Opcional"></div>
+      <div><label for="iva">I.V.A.</label>
+        <select id="iva">
+          <option>Cons. Final</option><option>Resp. Inscrip.</option><option>Exento</option><option>Resp. Monotributo</option>
+        </select></div>
+    </div>
+
+    <h2>Detalle</h2>
+    <div id="items"></div>
+    <button type="button" id="addItem">+ Agregar renglón</button>
+
+    <h2>Pago</h2>
+    <div class="g2">
+      <div><label for="formaPago">Forma de pago</label>
+        <select id="formaPago">
+          <option value="">(no indicar)</option><option>Efectivo</option><option>Transferencia</option><option>Tarjeta de débito</option><option>Tarjeta de crédito</option><option>Mercado Pago</option><option>Cheque</option>
+        </select></div>
+      <div><label for="importe">Importe ($)</label><input id="importe" type="number" min="0" step="0.01"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="pagado"> Sello "PAGADO"</label>
+
+    <h2>Transporte (opcional)</h2>
+    <label for="tNombre">Transporte</label><input id="tNombre">
+    <div class="g2">
+      <div><label for="tDom">Domicilio</label><input id="tDom"></div>
+      <div><label for="tCuit">C.U.I.T.</label><input id="tCuit"></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="pri" id="btnGuardar">Guardar e imprimir / PDF</button>
+      <button type="button" id="btnNuevo">Nuevo remito</button>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <h2>Historial (guardado en este dispositivo)</h2>
+    <div class="hist" id="hist"></div>
+    <div class="actions">
+      <button type="button" id="btnExport">Exportar historial (CSV)</button>
+      <button type="button" id="btnBackup">Copia de seguridad</button>
+      <label style="margin:0"><button type="button" id="btnRestore">Restaurar copia</button></label>
+      <input type="file" id="fileRestore" accept="application/json" hidden>
+    </div>
+  </section>
+
+  <section class="panel previewbox">
+    <div class="remito" id="remito">
+      <div class="box head">
+        <div class="emp">
+          <img src="logo.webp" alt="Sergio T Refrigeración">
+          <p>Rodríguez Martín 521 (1159)</p>
+          <p>Ciudad Autónoma de Buenos Aires</p>
+          <p><b>IVA RESPONSABLE INSCRIPTO</b></p>
+        </div>
+        <div class="letra"><div>R</div><small>CÓDIGO Nº 091</small></div>
+        <div class="der">
+          <span class="nv">DOCUMENTO NO<br>VÁLIDO COMO FACTURA</span><h3>REMITO</h3>
+          <div class="num">Nº <span id="pNum"></span></div>
+          <div class="row"><span>FECHA:</span><span class="v" id="pFecha"></span></div>
+          <div class="kv">
+            <span>C.U.I.T. Nº:</span><span>30-71884437-8</span>
+            <span>Ing. Brutos:</span><span>30-71884437-8</span>
+            <span>Inicio de Actividades:</span><span>20/01/2025</span>
+          </div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="row"><span>Señores:</span><span class="v" id="pCliente"></span></div>
+        <div class="row"><span>Domicilio:</span><span class="v" id="pDom"></span><span>Localidad:</span><span class="v" id="pLoc" style="flex:.5"></span></div>
+        <div class="row iva"><span>C.U.I.T.: <b id="pCuit"></b></span><span style="margin-left:auto">I.V.A.:</span><span id="pIva"></span></div>
+      </div>
+      <div class="box" style="padding:0">
+        <table>
+          <thead><tr><th>CANTIDAD</th><th>DESCRIPCIÓN</th></tr></thead>
+          <tbody id="pItems"></tbody>
+        </table>
+      </div>
+      <div class="box">
+        <div class="row"><span>Transporte:</span><span class="v" id="pTNom"></span></div>
+        <div class="row"><span>Domicilio:</span><span class="v" id="pTDom"></span></div>
+        <div class="row"><span>C.U.I.T.:</span><span class="v" id="pTCuit"></span></div>
+      </div>
+      <div class="box">Recibí conforme:
+        <div class="firma"><div>Firma</div><div>Aclaración</div><div>D.N / C.I</div></div>
+      </div>
+      <div class="box pie">
+        <span>Imprenta: AG Artes Gráficas, de Rubén Nicolás Amato - CUIT Nº 23-25747781-9 - Exp. Nº 1-17495-2014 - Nº 00003-00000001 al 00003-00000050 - Fecha de Imp.: 09/2026 - Original Blanco - Duplicado Color</span>
+        <span class="cai">C.A.I. Nº: 52358220331213<br>Fecha de Venc.: 02/09/2027</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const KEY = 'sergiot_remitos_v1';
+  const CAI_VENC = '2027-09-02';
+  const RANGO_MAX = 50;
+  const IVA_OPC = ['Resp. Inscrip.','Exento','Cons. Final','Resp. Monotributo'];
+  // Remito ya emitido en papel antes de usar esta página
+  const SEMILLA = [{
+    pv:'00003', nro:7, fecha:'2026-10-17', cliente:'PRISCILA CASCONE', domicilio:'SAN NICOLÁS 143', localidad:'CABA',
+    cuit:'', iva:'Cons. Final',
+    items:[{cant:'1', desc:'Recibí la suma de $780.000 por la compra de un aire acondicionado BGH ON-OFF con instalación incluida.'}],
+    formaPago:'Efectivo', importe:'780000', pagado:true, tNombre:'', tDom:'', tCuit:''
+  }];
+
+  const $ = id => document.getElementById(id);
+  const campos = ['pv','nro','fecha','cliente','domicilio','localidad','cuit','iva','formaPago','importe','tNombre','tDom','tCuit'];
+
+  function leerHist(){
+    try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : SEMILLA.slice(); }
+    catch(e){ return SEMILLA.slice(); }
+  }
+  function guardarHist(h){
+    try{ localStorage.setItem(KEY, JSON.stringify(h)); return true; }
+    catch(e){ return false; }
+  }
+  let hist = leerHist();
+
+  const pad = (n,l) => String(n||'').replace(/\D/g,'').padStart(l,'0');
+  const fmtFecha = f => { if(!f) return ''; const [y,m,d] = f.split('-'); return `${d}/${m}/${y}`; };
+  const fmtPesos = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const hoy = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+  const proximoNro = pv => hist.filter(r => pad(r.pv,5) === pad(pv,5)).reduce((m,r) => Math.max(m, +r.nro), 0) + 1;
+
+  function agregarItem(cant='', desc=''){
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = '<input class="cant" placeholder="Cant." inputmode="decimal"><textarea class="desc" placeholder="Descripción"></textarea><button type="button" class="x" title="Quitar">✕</button>';
+    div.querySelector('.cant').value = cant;
+    div.querySelector('.desc').value = desc;
+    div.querySelector('.x').onclick = () => { div.remove(); render(); };
+    $('items').appendChild(div);
+  }
+
+  function leerForm(){
+    const r = {};
+    campos.forEach(c => r[c] = $(c).value.trim());
+    r.nro = parseInt(r.nro,10) || '';
+    r.pagado = $('pagado').checked;
+    r.items = [...document.querySelectorAll('#items .item')].map(d => ({
+      cant: d.querySelector('.cant').value.trim(), desc: d.querySelector('.desc').value.trim()
+    })).filter(i => i.cant || i.desc);
+    return r;
+  }
+
+  function cargarForm(r){
+    campos.forEach(c => $(c).value = r[c] ?? '');
+    $('pagado').checked = !!r.pagado;
+    $('items').innerHTML = '';
+    (r.items && r.items.length ? r.items : [{cant:'',desc:''}]).forEach(i => agregarItem(i.cant, i.desc));
+    render();
+  }
+
+  function td(txt){ const c = document.createElement('td'); c.textContent = txt; return c; }
+
+  function render(){
+    const r = leerForm();
+    $('pNum').textContent = `${pad(r.pv,5)} - ${pad(r.nro,8)}`;
+    $('pFecha').textContent = fmtFecha(r.fecha);
+    $('pCliente').textContent = r.cliente.toUpperCase();
+    $('pDom').textContent = r.domicilio.toUpperCase();
+    $('pLoc').textContent = r.localidad.toUpperCase();
+    $('pCuit').textContent = r.cuit;
+    $('pIva').textContent = IVA_OPC.map(o => (o === r.iva ? '☒ ' : '☐ ') + o).join('   ');
+    $('pTNom').textContent = r.tNombre; $('pTDom').textContent = r.tDom; $('pTCuit').textContent = r.tCuit;
+
+    const tb = $('pItems'); tb.innerHTML = '';
+    r.items.forEach(i => { const tr = document.createElement('tr'); tr.append(td(i.cant), td(i.desc)); tb.appendChild(tr); });
+    if(r.formaPago || r.importe){
+      const tr = document.createElement('tr');
+      const c = td(''); c.style.fontWeight = 'bold';
+      c.textContent = 'Pago' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + (r.importe ? ': ' + fmtPesos(r.importe) : '');
+      tr.append(td(''), c); tb.appendChild(tr);
+    }
+    const rest = Math.max(1, 10 - tb.children.length);
+    for(let k=0;k<rest;k++){
+      const tr = document.createElement('tr'); const a = td(''), b = td('');
+      a.innerHTML = b.innerHTML = '&nbsp;';
+      if(k===0 && r.pagado){ b.style.textAlign='center'; b.style.padding='18px 6px'; b.innerHTML = '<span class="pagado">PAGADO</span>'; }
+      tr.append(a,b); tb.appendChild(tr);
+    }
+    avisos(r);
+  }
+
+  function avisos(r, extra){
+    const m = [];
+    if(r.nro > RANGO_MAX) m.push(`El talonario autorizado llega hasta el Nº ${RANGO_MAX}.`);
+    if(r.fecha && r.fecha > CAI_VENC) m.push('La fecha es posterior al vencimiento del C.A.I. (02/09/2027).');
+    if(hist.some(h => pad(h.pv,5)===pad(r.pv,5) && +h.nro===+r.nro)) m.push('Este número ya está en el historial: al guardar se reemplaza.');
+    $('msg').className = 'msg ' + (extra ? 'ok' : 'warn');
+    $('msg').textContent = extra || m.join(' ');
+  }
+
+  function renderHist(){
+    const h = $('hist'); h.innerHTML = '';
+    if(!hist.length){ h.innerHTML = '<div><small>Sin remitos guardados.</small></div>'; return; }
+    hist.slice().sort((a,b) => (b.pv+pad(b.nro,8)).localeCompare(a.pv+pad(a.nro,8))).forEach(r => {
+      const d = document.createElement('div');
+      const izq = document.createElement('span');
+      izq.innerHTML = `<b>${pad(r.pv,5)}-${pad(r.nro,8)}</b> `;
+      izq.append(document.createTextNode(r.cliente || '(sin cliente)'));
+      const der = document.createElement('small');
+      der.textContent = fmtFecha(r.fecha) + (r.importe ? ' · ' + fmtPesos(r.importe) : '');
+      d.append(izq, der);
+      d.onclick = () => { cargarForm(r); window.scrollTo({top:0,behavior:'smooth'}); };
+      h.appendChild(d);
+    });
+  }
+
+  function nuevo(){
+    const pv = $('pv').value || '00003';
+    cargarForm({pv, nro: proximoNro(pv), fecha: hoy(), localidad:'CABA', iva:'Cons. Final', items:[{cant:'1',desc:''}]});
+    $('cliente').focus();
+  }
+
+  $('btnGuardar').onclick = () => {
+    const r = leerForm();
+    if(!r.nro || !r.cliente){ avisos(r); $('msg').className='msg warn'; $('msg').textContent='Completá al menos el número y el cliente.'; return; }
+    r.pv = pad(r.pv,5);
+    hist = hist.filter(h => !(pad(h.pv,5)===r.pv && +h.nro===+r.nro));
+    hist.push(r);
+    const ok = guardarHist(hist);
+    renderHist();
+    avisos(r, ok ? `Remito ${r.pv}-${pad(r.nro,8)} guardado.` : 'No se pudo guardar en este dispositivo (igual podés imprimir).');
+    document.title = `Remito ${r.pv}-${pad(r.nro,8)} ${r.cliente}`;
+    setTimeout(() => { window.print(); document.title = 'Remitos | Sergio T Refrigeración'; }, 50);
+  };
+  $('btnNuevo').onclick = nuevo;
+  $('addItem').onclick = () => { agregarItem(); render(); };
+
+  function descargar(nombre, contenido, tipo){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([contenido],{type:tipo}));
+    a.download = nombre; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $('btnExport').onclick = () => {
+    const q = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
+    const filas = [['Numero','Fecha','Cliente','Domicilio','Localidad','CUIT','IVA','Detalle','Forma de pago','Importe','Pagado']];
+    hist.forEach(r => filas.push([`${pad(r.pv,5)}-${pad(r.nro,8)}`, fmtFecha(r.fecha), r.cliente, r.domicilio, r.localidad, r.cuit, r.iva,
+      (r.items||[]).map(i => (i.cant ? i.cant + ' x ' : '') + i.desc).join(' | '), r.formaPago, r.importe, r.pagado ? 'Sí' : 'No']));
+    descargar('remitos.csv', '﻿' + filas.map(f => f.map(q).join(';')).join('\r\n'), 'text/csv');
+  };
+  $('btnBackup').onclick = () => descargar(`remitos-backup-${hoy()}.json`, JSON.stringify(hist,null,1), 'application/json');
+  $('btnRestore').onclick = () => $('fileRestore').click();
+  $('fileRestore').onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    f.text().then(t => {
+      const data = JSON.parse(t);
+      if(!Array.isArray(data)) throw new Error();
+      hist = data; guardarHist(hist); renderHist(); nuevo();
+      avisos(leerForm(), `Se restauraron ${data.length} remitos.`);
+    }).catch(() => { $('msg').className='msg warn'; $('msg').textContent='El archivo no es una copia válida.'; });
+    e.target.value = '';
+  };
+
+  document.querySelector('.form').addEventListener('input', render);
+  document.querySelector('.form').addEventListener('change', render);
+
+  guardarHist(hist);
+  renderHist();
+  nuevo();
+})();
+</script>
+</body>
+</html>
