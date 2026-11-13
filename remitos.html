@@ -136,6 +136,8 @@
     <div id="recibi" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--paper)">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">Recibí la suma de $</b><input id="importe" type="number" min="0" step="0.01" placeholder="Escribí el número" style="flex:1;min-width:120px"></div>
       <div id="importeLetras" style="font-size:13px;color:var(--ink);margin-top:6px;min-height:1.2em"></div>
+      <div style="font-size:13px;margin-top:8px"><b>En concepto de compra de un aire acondicionado</b></div>
+      <div class="g2"><div><label for="marca">Marca</label><input id="marca" placeholder="Ej: BGH"></div><div><label for="modelo">Modelo</label><input id="modelo" placeholder="Ej: ON-OFF 3000"></div></div>
     </div>
     
 
@@ -244,7 +246,7 @@
   }];
 
   const $ = id => document.getElementById(id);
-  const campos = ['pv','nro','fecha','cliente','domicilio','localidad','cuit','iva','formaPago','importe','tNombre','tDom','tCuit'];
+  const campos = ['pv','nro','fecha','cliente','domicilio','localidad','cuit','iva','formaPago','importe','marca','modelo','tNombre','tDom','tCuit'];
 
   function leer(k, def){
     try{ const s = localStorage.getItem(k); return s ? JSON.parse(s) : def; }
@@ -450,9 +452,13 @@
     $('pTNom').textContent = r.tNombre; $('pTDom').textContent = r.tDom; $('pTCuit').textContent = r.tCuit;
 
     const tb = $('pItems'); tb.innerHTML = '';
-    const recibi = r.importe
-      ? 'Recibí la suma de ' + fmtPesos(r.importe) + ' (' + importeLetras(r.importe) + ')' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + '.'
-      : 'Recibí la suma de $ ____________________' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
+    const linea = '____________________';
+    const recibi = (r.importe
+      ? 'Recibí la suma de ' + fmtPesos(r.importe) + ' (' + importeLetras(r.importe) + ')'
+      : 'Recibí la suma de $ ' + linea)
+      + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '')
+      + ' en concepto de compra de un aire acondicionado marca ' + (r.marca || linea)
+      + ' modelo ' + (r.modelo || linea) + '.';
     const filas = r.items.length ? r.items : [{cant:'', desc:''}];
     filas.forEach((i, k) => {
       const tr = document.createElement('tr');
