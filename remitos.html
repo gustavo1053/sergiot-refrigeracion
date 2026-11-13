@@ -140,7 +140,7 @@
         <select id="formaPago">
           <option value="">(no indicar)</option><option>Efectivo</option><option>Transferencia</option><option>Tarjeta de débito</option><option>Tarjeta de crédito</option><option>Mercado Pago</option><option>Cheque</option>
         </select></div>
-      <div><label for="importe">Importe ($)</label><input id="importe" type="number" min="0" step="0.01"></div>
+      <div><label for="importe">Recibí la suma de ($)</label><input id="importe" type="number" min="0" step="0.01" placeholder="Ej: 780000"><div id="importeLetras" style="font-size:12px;color:var(--ink-soft);margin-top:4px;min-height:1.2em"></div></div>
     </div>
     <label class="chk"><input type="checkbox" id="pagado"> Sello "PAGADO"</label>
 
@@ -249,6 +249,42 @@
     try{ localStorage.setItem(k, JSON.stringify(v)); return true; }
     catch(e){ return false; }
   }
+
+  // Número a letras (español, hasta 999.999.999.999)
+  function numLetras(n){
+    const U=['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
+    const D=['','','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+    const C=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+    function menosMil(x){
+      if(x===100) return 'cien';
+      let t='';
+      if(x>=100){ t=C[Math.floor(x/100)]; x%=100; if(!x) return t; t+=' '; }
+      if(x<30) return t+U[x];
+      const d=Math.floor(x/10), u=x%10;
+      return t+D[d]+(u?' y '+U[u]:'');
+    }
+    function apocopar(t){ return t.replace(/veintiuno$/,'veintiún').replace(/uno$/,'un'); }
+    if(n===0) return 'cero';
+    const millones=Math.floor(n/1e6), miles=Math.floor((n%1e6)/1e3), resto=n%1e3;
+    let t=[];
+    if(millones){
+      t.push(millones===1 ? 'un millón' : apocopar(numLetras(millones))+' millones');
+    }
+    if(miles){
+      t.push(miles===1 ? 'mil' : apocopar(numLetras(miles))+' mil');
+    }
+    if(resto) t.push(menosMil(resto));
+    return t.join(' ');
+  }
+  // Importe en letras: "setecientos ochenta mil pesos" / "... pesos con 50/100"
+  function importeLetras(v){
+    const n = Math.round(Number(v)*100);
+    if(!(n>0)) return '';
+    const ent=Math.floor(n/100), cent=n%100;
+    const pesos = ent===1 ? 'un peso' : (apocoparPesos(numLetras(ent)) + (ent>=1e6 && ent%1e6===0 ? ' de pesos' : ' pesos'));
+    return pesos + (cent ? ' con ' + String(cent).padStart(2,'0') + '/100' : '');
+  }
+  function apocoparPesos(t){ return t.replace(/veintiuno$/,'veintiún').replace(/uno$/,'un'); }
 
   const pad = (n,l) => String(n||'').replace(/\D/g,'').padStart(l,'0');
   const idDe = r => `${pad(r.pv,5)}-${pad(r.nro,8)}`;
@@ -413,7 +449,9 @@
     if(r.formaPago || r.importe){
       const tr = document.createElement('tr');
       const c = td(''); c.style.fontWeight = 'bold';
-      c.textContent = 'Pago' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + (r.importe ? ': ' + fmtPesos(r.importe) : '');
+      c.textContent = r.importe
+        ? 'Recibí la suma de ' + fmtPesos(r.importe) + ' (' + importeLetras(r.importe) + ')' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + '.'
+        : 'Pago' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
       tr.append(td(''), c); tb.appendChild(tr);
     }
     const rest = Math.max(1, 10 - tb.children.length);
@@ -423,6 +461,7 @@
       if(k===0 && r.pagado){ b.style.textAlign='center'; b.style.padding='18px 6px'; b.innerHTML = '<span class="pagado">PAGADO</span>'; }
       tr.append(a,b); tb.appendChild(tr);
     }
+    $('importeLetras').textContent = r.importe ? '= ' + importeLetras(r.importe) : '';
     avisos(r);
   }
 
