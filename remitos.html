@@ -450,7 +450,6 @@
     $('pTNom').textContent = r.tNombre; $('pTDom').textContent = r.tDom; $('pTCuit').textContent = r.tCuit;
 
     const tb = $('pItems'); tb.innerHTML = '';
-    r.items.forEach(i => { const tr = document.createElement('tr'); tr.append(td(i.cant), td(i.desc)); tb.appendChild(tr); });
     {
       const tr = document.createElement('tr');
       const c = td(''); c.style.fontWeight = 'bold';
@@ -459,6 +458,7 @@
         : 'Recibí la suma de $ ____________________' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
       tr.append(td(''), c); tb.appendChild(tr);
     }
+    r.items.forEach(i => { const tr = document.createElement('tr'); tr.append(td(i.cant), td(i.desc)); tb.appendChild(tr); });
     const rest = Math.max(1, 10 - tb.children.length);
     for(let k=0;k<rest;k++){
       const tr = document.createElement('tr'); const a = td(''), b = td('');
