@@ -133,6 +133,11 @@
     <h2>Detalle</h2>
     <div id="items"></div>
     <button type="button" id="addItem">+ Agregar renglón</button>
+    <div id="recibi" style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--paper)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">Recibí la suma de $</b><input id="importe" type="number" min="0" step="0.01" placeholder="Escribí el número" style="flex:1;min-width:120px"></div>
+      <div id="importeLetras" style="font-size:13px;color:var(--ink);margin-top:6px;min-height:1.2em"></div>
+    </div>
+    
 
     <h2>Pago</h2>
     <div class="g2">
@@ -140,7 +145,7 @@
         <select id="formaPago">
           <option value="">(no indicar)</option><option>Efectivo</option><option>Transferencia</option><option>Tarjeta de débito</option><option>Tarjeta de crédito</option><option>Mercado Pago</option><option>Cheque</option>
         </select></div>
-      <div><label for="importe">Recibí la suma de ($)</label><input id="importe" type="number" min="0" step="0.01" placeholder="Ej: 780000"><div id="importeLetras" style="font-size:12px;color:var(--ink-soft);margin-top:4px;min-height:1.2em"></div></div>
+      <div></div>
     </div>
     <label class="chk"><input type="checkbox" id="pagado"> Sello "PAGADO"</label>
 
@@ -461,7 +466,7 @@
       if(k===0 && r.pagado){ b.style.textAlign='center'; b.style.padding='18px 6px'; b.innerHTML = '<span class="pagado">PAGADO</span>'; }
       tr.append(a,b); tb.appendChild(tr);
     }
-    $('importeLetras').textContent = r.importe ? '= ' + importeLetras(r.importe) : '';
+    $('importeLetras').textContent = r.importe ? 'Son: ' + importeLetras(r.importe) : '';
     avisos(r);
   }
 
