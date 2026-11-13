@@ -451,12 +451,12 @@
 
     const tb = $('pItems'); tb.innerHTML = '';
     r.items.forEach(i => { const tr = document.createElement('tr'); tr.append(td(i.cant), td(i.desc)); tb.appendChild(tr); });
-    if(r.formaPago || r.importe){
+    {
       const tr = document.createElement('tr');
       const c = td(''); c.style.fontWeight = 'bold';
       c.textContent = r.importe
         ? 'Recibí la suma de ' + fmtPesos(r.importe) + ' (' + importeLetras(r.importe) + ')' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + '.'
-        : 'Pago' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
+        : 'Recibí la suma de $ ____________________' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
       tr.append(td(''), c); tb.appendChild(tr);
     }
     const rest = Math.max(1, 10 - tb.children.length);
