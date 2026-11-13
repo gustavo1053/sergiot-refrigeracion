@@ -450,15 +450,22 @@
     $('pTNom').textContent = r.tNombre; $('pTDom').textContent = r.tDom; $('pTCuit').textContent = r.tCuit;
 
     const tb = $('pItems'); tb.innerHTML = '';
-    {
+    const recibi = r.importe
+      ? 'Recibí la suma de ' + fmtPesos(r.importe) + ' (' + importeLetras(r.importe) + ')' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + '.'
+      : 'Recibí la suma de $ ____________________' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
+    const filas = r.items.length ? r.items : [{cant:'', desc:''}];
+    filas.forEach((i, k) => {
       const tr = document.createElement('tr');
-      const c = td(''); c.style.fontWeight = 'bold';
-      c.textContent = r.importe
-        ? 'Recibí la suma de ' + fmtPesos(r.importe) + ' (' + importeLetras(r.importe) + ')' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '') + '.'
-        : 'Recibí la suma de $ ____________________' + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '');
-      tr.append(td(''), c); tb.appendChild(tr);
-    }
-    r.items.forEach(i => { const tr = document.createElement('tr'); tr.append(td(i.cant), td(i.desc)); tb.appendChild(tr); });
+      const d = td('');
+      if(k === 0){
+        const b = document.createElement('b'); b.textContent = recibi;
+        d.appendChild(b);
+        if(i.desc) d.appendChild(document.createTextNode(' ' + i.desc));
+      }else{
+        d.textContent = i.desc;
+      }
+      tr.append(td(i.cant), d); tb.appendChild(tr);
+    });
     const rest = Math.max(1, 10 - tb.children.length);
     for(let k=0;k<rest;k++){
       const tr = document.createElement('tr'); const a = td(''), b = td('');
