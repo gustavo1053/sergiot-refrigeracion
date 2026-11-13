@@ -40,6 +40,7 @@
   .chk input{width:auto}
   button{font:inherit;font-size:14px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 12px;cursor:pointer}
   button.pri{background:var(--blue-600);border-color:var(--blue-600);color:#fff;font-weight:bold}
+  button.on{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:bold}
   button.x{padding:6px;color:#a33}
   .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
   .msg{font-size:13px;margin-top:8px;min-height:1em}
@@ -137,6 +138,7 @@
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">Recibí la suma de $</b><input id="importe" type="number" min="0" step="0.01" placeholder="Escribí el número" style="flex:1;min-width:120px"></div>
       <div id="importeLetras" style="font-size:13px;color:var(--ink);margin-top:6px;min-height:1.2em"></div>
       <div style="font-size:13px;margin-top:8px"><b>En concepto de compra de un aire acondicionado</b></div>
+      <div style="margin-top:8px"><button type="button" id="btnInstal" aria-pressed="false">Instalación incluida</button></div>
       <div class="g2"><div><label for="marca">Marca</label><input id="marca" placeholder="Ej: BGH"></div><div><label for="modelo">Modelo</label><input id="modelo" placeholder="Ej: ON-OFF 3000"></div></div>
     </div>
     
@@ -298,7 +300,7 @@
   const fmtFecha = f => { if(!f) return ''; const [y,m,d] = f.split('-'); return `${d}/${m}/${y}`; };
   const fmtPesos = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2});
   const hoy = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
-  const limpio = r => { const o = {}; campos.forEach(c => o[c] = r[c] ?? ''); o.nro = +r.nro; o.pv = pad(r.pv,5); o.pagado = !!r.pagado; o.items = r.items || []; return o; };
+  const limpio = r => { const o = {}; campos.forEach(c => o[c] = r[c] ?? ''); o.nro = +r.nro; o.pv = pad(r.pv,5); o.pagado = !!r.pagado; o.instalacion = !!r.instalacion; o.items = r.items || []; return o; };
 
   // ---------- Estado ----------
   let nube = leer(KEY, SEMILLA.slice());   // último historial conocido de la nube
@@ -419,11 +421,20 @@
     $('items').appendChild(div);
   }
 
+  function setInstal(on){
+    const b = $('btnInstal');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.classList.toggle('on', on);
+    b.textContent = on ? '✓ Instalación incluida' : 'Instalación incluida';
+  }
+  $('btnInstal').onclick = () => { setInstal($('btnInstal').getAttribute('aria-pressed') !== 'true'); render(); };
+
   function leerForm(){
     const r = {};
     campos.forEach(c => r[c] = $(c).value.trim());
     r.nro = parseInt(r.nro,10) || '';
     r.pagado = $('pagado').checked;
+    r.instalacion = $('btnInstal').getAttribute('aria-pressed') === 'true';
     r.items = [...document.querySelectorAll('#items .item')].map(d => ({
       cant: d.querySelector('.cant').value.trim(), desc: d.querySelector('.desc').value.trim()
     })).filter(i => i.cant || i.desc);
@@ -433,6 +444,7 @@
   function cargarForm(r){
     campos.forEach(c => $(c).value = r[c] ?? '');
     $('pagado').checked = !!r.pagado;
+    setInstal(!!r.instalacion);
     $('items').innerHTML = '';
     (r.items && r.items.length ? r.items : [{cant:'',desc:''}]).forEach(i => agregarItem(i.cant, i.desc));
     render();
@@ -458,7 +470,7 @@
       : 'Recibí la suma de $ ' + linea)
       + (r.formaPago ? ' en ' + r.formaPago.toLowerCase() : '')
       + ' en concepto de compra de un aire acondicionado marca ' + (r.marca || linea)
-      + ' modelo ' + (r.modelo || linea) + '.';
+      + ' modelo ' + (r.modelo || linea) + '.' + (r.instalacion ? ' Instalación incluida.' : '');
     const filas = r.items.length ? r.items : [{cant:'', desc:''}];
     filas.forEach((i, k) => {
       const tr = document.createElement('tr');
